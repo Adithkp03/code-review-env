@@ -1,3 +1,11 @@
+---
+title: Code Review Env
+emoji: 🔍
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
 # Code Review Agent — OpenEnv Environment
 
 ## Submission Checklist

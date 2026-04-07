@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -14,7 +14,7 @@ DEFAULT_HTTP_SESSION = "http_default"
 
 
 class ResetRequest(BaseModel):
-    problem_id: str | None = None
+    problem_id: Optional[str] = None
 
 
 def _get_or_create_env(session_id: str) -> CodeReviewEnv:
@@ -24,13 +24,19 @@ def _get_or_create_env(session_id: str) -> CodeReviewEnv:
 
 
 @app.post("/reset")
-def reset(request: ResetRequest) -> dict[str, Any]:
+async def reset(body: ResetRequest = None) -> dict[str, Any]:
+    problem_id = body.problem_id if body else None
     env = _get_or_create_env(DEFAULT_HTTP_SESSION)
     try:
-        observation = env.reset(problem_id=request.problem_id)
+        observation = env.reset(problem_id=problem_id)
         return observation.model_dump()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"status": "ok", "service": "Code Review Agent"}
 
 
 @app.post("/step")

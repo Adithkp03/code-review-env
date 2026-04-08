@@ -93,10 +93,16 @@ def llm_to_action(observation: dict) -> Action:
 def run_episode() -> None:
     env = CodeReviewEnv(max_steps=3, randomize=True)
     observation = env.reset().model_dump()
+    problem_id = observation["problem_id"]
+    print(f"[START] task={problem_id}", flush=True)
+    cumulative_reward = 0.0
+    total_steps = 0
 
     while True:
         action = llm_to_action(observation)
         next_observation, reward, done, info = env.step(action)
+        cumulative_reward += reward
+        total_steps += 1
 
         grade = info.get("grade", {})
         code_grade = grade.get("code", {})
@@ -117,31 +123,35 @@ def run_episode() -> None:
                 "flaw_type_correct": flaw_type_grade.get("correct", False),
             },
         }
-        print(f"STEP: {json.dumps(step_data)}")
+        print(
+            f"[STEP] step={step_data['step']} "
+            f"reward={step_data['reward']} "
+            f"done={step_data['done']} "
+            f"flaw_type_correct={step_data['grade_summary']['flaw_type_correct']} "
+            f"tests_passed={step_data['grade_summary']['tests_passed']} "
+            f"tests_total={step_data['grade_summary']['tests_total']}",
+            flush=True,
+        )
 
         if done or next_observation.step >= next_observation.max_steps:
             break
         observation = next_observation.model_dump()
 
+    print(
+        f"[END] task={problem_id} "
+        f"score={cumulative_reward:.4f} "
+        f"steps={total_steps}",
+        flush=True,
+    )
+
 
 if __name__ == "__main__":
-    print("START")
     try:
         run_episode()
     except Exception:  # noqa: BLE001
-        error_data = {
-            "step": -1,
-            "problem_id": "unknown",
-            "action": {
-                "flaw_type_guess": "bug",
-                "explanation": "parse error",
-                "fixed_code": "def solution(*args, **kwargs):\n    return None",
-            },
-            "reward": 0.0,
-            "done": True,
-            "grade_summary": {"tests_passed": 0, "tests_total": 0, "flaw_type_correct": False},
-            "error": traceback.format_exc(limit=1),
-        }
-        print(f"STEP: {json.dumps(error_data)}")
-    finally:
-        print("END")
+        print("[START] task=unknown", flush=True)
+        print(
+            "[STEP] step=-1 reward=0.0 done=True flaw_type_correct=False tests_passed=0 tests_total=0",
+            flush=True,
+        )
+        print("[END] task=unknown score=0.0 steps=0", flush=True)

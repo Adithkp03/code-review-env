@@ -81,15 +81,84 @@ def health() -> dict[str, Any]:
 
 
 @app.get("/tasks")
-async def get_tasks():
+async def list_tasks():
+    """List all tasks with their graders - required by OpenEnv validator."""
     return {
         "tasks": [
-            {"name": "bug_detection", "description": "Identify and fix bugs", "grader": "grader.py"},
-            {"name": "inefficiency_detection", "description": "Identify and fix inefficiencies", "grader": "grader.py"},
-            {"name": "security_review", "description": "Identify and fix security issues", "grader": "grader.py"},
-            {"name": "style_improvement", "description": "Identify and fix style issues", "grader": "grader.py"},
+            {
+                "id": "easy_bug_fix",
+                "name": "easy_bug_fix",
+                "difficulty": "easy",
+                "description": "Fix a simple off-by-one or operator bug in a Python function",
+                "grader": "grader.grade_fixed_code",
+                "reward_range": [0.0, 1.0],
+                "problem_ids": ["off_by_one_loop", "wrong_operator", "missing_return",
+                                "mutable_default_arg", "integer_division",
+                                "reversed_condition", "infinite_loop_risk"]
+            },
+            {
+                "id": "medium_security_review",
+                "name": "medium_security_review",
+                "difficulty": "medium",
+                "description": "Identify and fix a security vulnerability",
+                "grader": "grader.grade_fixed_code",
+                "reward_range": [0.0, 1.0],
+                "problem_ids": ["sql_injection", "hardcoded_secret",
+                                "eval_usage", "path_traversal"]
+            },
+            {
+                "id": "hard_inefficiency_fix",
+                "name": "hard_inefficiency_fix",
+                "difficulty": "hard",
+                "description": "Identify and fix a performance inefficiency",
+                "grader": "grader.grade_fixed_code",
+                "reward_range": [0.0, 1.0],
+                "problem_ids": ["nested_loop_search", "repeated_computation",
+                                "string_concatenation", "redundant_sort",
+                                "unnecessary_list_copy"]
+            }
         ],
-        "total": 4
+        "total_tasks": 3,
+        "total_problems": 20
+    }
+
+
+@app.post("/grade")
+async def grade_task(request: dict):
+    """Run grader on a task - required by OpenEnv validator."""
+    from grader import grade_fixed_code
+    from data.problems import PROBLEMS
+
+    task_id = request.get("task_id", "easy_bug_fix")
+    fixed_code = request.get("fixed_code", "")
+    problem_id = request.get("problem_id", None)
+
+    # Map task_id to a representative problem
+    task_problem_map = {
+        "easy_bug_fix": "off_by_one_loop",
+        "medium_security_review": "sql_injection",
+        "hard_inefficiency_fix": "nested_loop_search"
+    }
+
+    if problem_id is None:
+        problem_id = task_problem_map.get(task_id, "off_by_one_loop")
+
+    problem = next((p for p in PROBLEMS if p["id"] == problem_id), PROBLEMS[0])
+
+    if not fixed_code:
+        fixed_code = problem["correct_code"]
+
+    result = grade_fixed_code(fixed_code, problem)
+
+    return {
+        "task_id": task_id,
+        "problem_id": problem_id,
+        "score": result["pass_rate"],
+        "reward": result["pass_rate"],
+        "pass_rate": result["pass_rate"],
+        "tests_passed": result["tests_passed"],
+        "tests_total": result["tests_total"],
+        "reward_range": [0.0, 1.0]
     }
 
 

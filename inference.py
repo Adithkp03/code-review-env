@@ -90,74 +90,58 @@ def llm_to_action(observation: dict) -> Action:
         return fallback_action(observation)
 
 
-def run_episode() -> None:
-    env = CodeReviewEnv(max_steps=3, randomize=True)
-    observation = env.reset().model_dump()
-    flaw_type = observation["flaw_type"]
-    task_name = {
-        "bug": "bug_detection",
-        "inefficiency": "inefficiency_detection",
-        "security": "security_review",
-        "style": "style_improvement",
-    }.get(flaw_type, f"{flaw_type}_detection")
+def run_episode(task_name: str = "easy_bug_fix", problem_id: str = None) -> None:
+    env = CodeReviewEnv(max_steps=3, randomize=(problem_id is None))
+
+    if problem_id:
+        observation = env.reset(problem_id=problem_id).model_dump()
+    else:
+        observation = env.reset().model_dump()
+
     print(f"[START] task={task_name}", flush=True)
+
     cumulative_reward = 0.0
     total_steps = 0
 
     while True:
         action = llm_to_action(observation)
         next_observation, reward, done, info = env.step(action)
+
         cumulative_reward += reward
         total_steps += 1
 
         grade = info.get("grade", {})
         code_grade = grade.get("code", {})
         flaw_type_grade = grade.get("flaw_type", {})
-        step_data = {
-            "step": next_observation.step,
-            "problem_id": next_observation.problem_id,
-            "action": {
-                "flaw_type_guess": action.flaw_type_guess,
-                "explanation": action.explanation,
-                "fixed_code": action.fixed_code,
-            },
-            "reward": reward,
-            "done": done,
-            "grade_summary": {
-                "tests_passed": code_grade.get("tests_passed", 0),
-                "tests_total": code_grade.get("tests_total", 0),
-                "flaw_type_correct": flaw_type_grade.get("correct", False),
-            },
-        }
+
         print(
-            f"[STEP] step={step_data['step']} "
-            f"reward={step_data['reward']} "
-            f"done={step_data['done']} "
-            f"flaw_type_correct={step_data['grade_summary']['flaw_type_correct']} "
-            f"tests_passed={step_data['grade_summary']['tests_passed']} "
-            f"tests_total={step_data['grade_summary']['tests_total']}",
-            flush=True,
+            f"[STEP] step={total_steps} "
+            f"reward={reward:.4f} "
+            f"done={done} "
+            f"flaw_type_correct={flaw_type_grade.get('correct', False)} "
+            f"tests_passed={code_grade.get('tests_passed', 0)} "
+            f"tests_total={code_grade.get('tests_total', 0)}",
+            flush=True
         )
 
         if done or next_observation.step >= next_observation.max_steps:
             break
         observation = next_observation.model_dump()
 
-    print(
-        f"[END] task={task_name} "
-        f"score={cumulative_reward:.4f} "
-        f"steps={total_steps}",
-        flush=True,
-    )
+    print(f"[END] task={task_name} score={cumulative_reward:.4f} steps={total_steps}", flush=True)
 
+
+TASK_PROBLEM_MAP = {
+    "easy_bug_fix": "off_by_one_loop",
+    "medium_security_review": "sql_injection",
+    "hard_inefficiency_fix": "nested_loop_search",
+}
 
 if __name__ == "__main__":
-    try:
-        run_episode()
-    except Exception:  # noqa: BLE001
-        print("[START] task=unknown", flush=True)
-        print(
-            "[STEP] step=-1 reward=0.0 done=True flaw_type_correct=False tests_passed=0 tests_total=0",
-            flush=True,
-        )
-        print("[END] task=unknown score=0.0 steps=0", flush=True)
+    for task_name, problem_id in TASK_PROBLEM_MAP.items():
+        try:
+            run_episode(task_name=task_name, problem_id=problem_id)
+        except Exception:
+            print(f"[START] task={task_name}", flush=True)
+            print(f"[STEP] step=-1 reward=0.0 done=True flaw_type_correct=False tests_passed=0 tests_total=0", flush=True)
+            print(f"[END] task={task_name} score=0.0 steps=0", flush=True)

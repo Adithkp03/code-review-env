@@ -1,7 +1,7 @@
 ---
 name: code-review-env
 version: "1.0.0"
-description: "An RL environment where an AI agent acts as a code reviewer. Each episode presents a Python function with intentional flaws. The agent must identify the flaw type, explain it, and submit a corrected version."
+description: "RL environment where an AI agent reviews Python code, identifies flaws, and submits fixes. Supports bug detection, inefficiency fixing, security review, and style improvement."
 author: "Adithkp03"
 
 entry_point: app.py
@@ -9,37 +9,40 @@ inference: inference.py
 
 observation_space:
   type: text
-  description: "Flawed Python function with metadata about the task"
+  description: "Flawed Python function with task metadata"
 
 action_space:
   type: text
-  description: "JSON with flaw_type_guess, explanation, fixed_code, request_hint"
+  description: "flaw_type_guess, explanation, fixed_code, request_hint"
 
-reward_range: [-1.0, 1.0]
+reward_range: [0.0, 1.0]
 
 tasks:
-  - name: bug_detection
-    description: "Identify and fix bugs in Python functions"
-    grader: grader.py
-    metric: pass_rate
-    
-  - name: inefficiency_detection
-    description: "Identify and fix performance inefficiencies in Python functions"
-    grader: grader.py
-    metric: pass_rate
-    
-  - name: security_review
-    description: "Identify and fix security vulnerabilities in Python functions"
-    grader: grader.py
-    metric: pass_rate
-    
-  - name: style_improvement
-    description: "Identify and fix style issues in Python functions"
-    grader: grader.py
-    metric: pass_rate
+  - id: easy_bug_fix
+    name: easy_bug_fix
+    difficulty: easy
+    description: "Fix a simple off-by-one or operator bug in a Python function"
+    grader: grader.grade_fixed_code
+    reward_range: [0.0, 1.0]
+
+  - id: medium_security_review
+    name: medium_security_review
+    difficulty: medium
+    description: "Identify and fix a security vulnerability such as SQL injection or eval usage"
+    grader: grader.grade_fixed_code
+    reward_range: [0.0, 1.0]
+
+  - id: hard_inefficiency_fix
+    name: hard_inefficiency_fix
+    difficulty: hard
+    description: "Identify and fix a performance inefficiency such as O(n^2) lookup or string concatenation in loop"
+    grader: grader.grade_fixed_code
+    reward_range: [0.0, 1.0]
 
 tags:
   - code-review
   - reinforcement-learning
   - python
   - llm-training
+  - bug-detection
+  - security

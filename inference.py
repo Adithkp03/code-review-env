@@ -113,10 +113,11 @@ def run_episode(task_name: str = "easy_bug_fix", problem_id: str = None) -> None
         grade = info.get("grade", {})
         code_grade = grade.get("code", {})
         flaw_type_grade = grade.get("flaw_type", {})
+        clamped_reward = max(0.01, min(0.99, reward))
 
         print(
             f"[STEP] step={total_steps} "
-            f"reward={reward:.4f} "
+            f"reward={clamped_reward:.4f} "
             f"done={done} "
             f"flaw_type_correct={flaw_type_grade.get('correct', False)} "
             f"tests_passed={code_grade.get('tests_passed', 0)} "
@@ -128,7 +129,11 @@ def run_episode(task_name: str = "easy_bug_fix", problem_id: str = None) -> None
             break
         observation = next_observation.model_dump()
 
-    print(f"[END] task={task_name} score={cumulative_reward:.4f} steps={total_steps}", flush=True)
+    clamped_score = max(0.01, min(0.99, cumulative_reward))
+    print(
+        f"[END] task={task_name} score={clamped_score:.4f} steps={total_steps}",
+        flush=True
+    )
 
 
 TASK_PROBLEM_MAP = {

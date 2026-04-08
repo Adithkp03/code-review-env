@@ -149,16 +149,18 @@ async def grade_task(request: dict):
         fixed_code = problem["correct_code"]
 
     result = grade_fixed_code(fixed_code, problem)
+    raw_score = result["pass_rate"]
+    score = max(0.01, min(0.99, raw_score))
 
     return {
         "task_id": task_id,
         "problem_id": problem_id,
-        "score": result["pass_rate"],
-        "reward": result["pass_rate"],
-        "pass_rate": result["pass_rate"],
+        "score": score,
+        "reward": score,
+        "pass_rate": score,
         "tests_passed": result["tests_passed"],
         "tests_total": result["tests_total"],
-        "reward_range": [0.0, 1.0]
+        "reward_range": [0.01, 0.99]
     }
 
 

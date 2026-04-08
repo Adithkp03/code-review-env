@@ -42,15 +42,16 @@ def compute_reward(grade_result: dict, step_num: int, max_steps: int) -> tuple[f
 
     hint_penalty = -0.20 if grade_result.get("hint_penalty", 0.0) < 0 else 0.0
 
-    total = code_reward + flaw_type_reward + explanation_reward + speed_bonus + hint_penalty
-    total = max(-1.0, min(1.0, round(total, 4)))
+    raw = code_reward + flaw_type_reward + explanation_reward + speed_bonus + hint_penalty
+    # Clamp strictly between 0.01 and 0.99 (validator rejects 0.0 and 1.0)
+    final_reward = max(0.01, min(0.99, raw))
 
     breakdown = {
-        "total": total,
+        "total": final_reward,
         "code_reward": round(code_reward, 4),
         "flaw_type_reward": round(flaw_type_reward, 4),
         "explanation_reward": round(explanation_reward, 4),
         "speed_bonus": round(speed_bonus, 4),
         "hint_penalty": round(hint_penalty, 4),
     }
-    return total, breakdown
+    return final_reward, breakdown

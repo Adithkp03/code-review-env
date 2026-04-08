@@ -110,7 +110,7 @@ def execute_code(code: str, test_case: dict) -> dict:
 
 def grade_flaw_type(guess: str, actual: str) -> dict:
     correct = guess == actual
-    return {"correct": correct, "score": 1.0 if correct else 0.0}
+    return {"correct": correct, "score": 0.99 if correct else 0.01}
 
 
 def _tokenize(text: str) -> set[str]:
@@ -144,7 +144,7 @@ def grade_explanation(explanation: str, flaw_explanation: str) -> dict:
     word_count = len(re.findall(r"\w+", explanation))
     too_short = word_count <= 20
     if too_short:
-        return {"score": 0.0, "word_overlap": 0.0, "too_short": True}
+        return {"score": 0.01, "word_overlap": 0.0, "too_short": True}
 
     exp_tokens = _tokenize(explanation)
     gt_tokens = _tokenize(flaw_explanation)
@@ -155,7 +155,9 @@ def grade_explanation(explanation: str, flaw_explanation: str) -> dict:
     else:
         overlap = len(exp_tokens & gt_tokens) / len(exp_tokens | gt_tokens)
 
-    return {"score": round(overlap, 4), "word_overlap": round(overlap, 4), "too_short": False}
+    score = round(overlap, 4)
+    score = max(0.01, min(0.99, score))
+    return {"score": score, "word_overlap": round(overlap, 4), "too_short": False}
 
 
 def grade_fixed_code(fixed_code: str, problem: dict) -> dict:
@@ -163,6 +165,8 @@ def grade_fixed_code(fixed_code: str, problem: dict) -> dict:
     tests_total = len(test_results)
     tests_passed = sum(1 for r in test_results if r["passed"])
     pass_rate = tests_passed / tests_total if tests_total else 0.0
+    # Clamp to strictly open interval (0, 1) as required by validator
+    pass_rate = max(0.01, min(0.99, pass_rate))
     avg_execution_time_ms = (
         sum(r["execution_time_ms"] for r in test_results) / tests_total if tests_total else 0.0
     )

@@ -14,4 +14,4 @@ ENV MODEL_NAME=""
 ENV HF_TOKEN=""
 ENV LOCAL_IMAGE_NAME=""
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "4"]
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "4"]

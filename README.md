@@ -6,139 +6,154 @@ colorTo: green
 sdk: docker
 pinned: false
 ---
+
 # Code Review Agent — OpenEnv Environment
 
-## Submission Checklist
-- [x] inference.py follows the OpenEnv template exactly
-- [x] API_BASE_URL and MODEL_NAME have defaults; HF_TOKEN does not
-- [x] All LLM calls use OpenAI client configured via env variables
-- [x] Stdout logs follow START/STEP/END format exactly
-- [x] Environment runs locally via `python inference.py`
+> A reinforcement learning environment where an AI agent learns to review 
+> Python code like a senior engineer. Built for the Meta × PyTorch × 
+> Hugging Face OpenEnv Hackathon.
 
-## Overview
-This project provides a reinforcement learning environment where the agent acts as an automated Python code reviewer. In each episode, the agent receives a flawed function and must classify the flaw type, explain the issue in plain language, and submit a corrected implementation. The environment then evaluates the fix by executing code against hidden-style test cases, not just text matching.
+## Why This Environment?
 
-The environment is designed for GRPO-style policy optimization with TRL and OpenEnv. It produces shaped rewards that combine correctness, reasoning quality, and interaction efficiency, making it useful for training LLMs to perform practical code review tasks that require both analysis and executable fixes.
+Code review is one of the highest-value real-world tasks for LLM agents:
+- Every software team does it daily
+- It requires multi-step reasoning: read → diagnose → fix → verify
+- It has clear, programmatic success criteria (does the fixed code pass tests?)
+- It spans multiple difficulty levels naturally (bugs → inefficiencies → security)
+
+This environment trains agents to be better code reviewers through 
+reinforcement learning, rewarding correctness, explanation quality, and efficiency.
 
 ## Task Description
-At reset, the agent sees:
-- Problem metadata (`id`, `difficulty`, `flaw_type`)
-- Natural language description of intended behavior
-- Flawed Python code
 
-At each step, the agent must submit:
-- A flaw type guess (`bug`, `inefficiency`, `security`, `style`)
-- A written explanation of the flaw
-- A corrected version of the function (`solution`)
-
-The grader executes the submitted code on test cases and returns structured feedback plus a composite grade.
+Each episode:
+1. Agent receives a flawed Python function + description of what it should do
+2. Agent must identify the flaw type (bug / inefficiency / security / style)
+3. Agent must explain the flaw in plain English
+4. Agent must submit a corrected version of the function
+5. Grader executes the fixed code against hidden test cases and returns reward
 
 ## Observation Space
 
-| field name | type | description |
+| Field | Type | Description |
 |---|---|---|
-| episode_id | str | Unique UUID for the active episode |
-| step | int | Current step count |
-| max_steps | int | Max allowed attempts in the episode |
-| problem_id | str | Problem identifier |
-| difficulty | `"easy" \| "medium" \| "hard"` | Problem difficulty level |
-| flaw_type | `"bug" \| "inefficiency" \| "security" \| "style"` | Ground-truth flaw category |
-| description | str | Expected function behavior |
-| flawed_code | str | Python code to review |
-| hint_available | bool | Whether hint was used and now visible |
-| hint | str \| null | Hint text after hint request |
-| cumulative_reward | float | Sum of rewards so far |
-| done | bool | Episode completion flag |
-| feedback | str \| null | Human-readable grader feedback |
+| episode_id | str | Unique episode identifier |
+| step | int | Current step number |
+| max_steps | int | Maximum steps per episode (default: 3) |
+| problem_id | str | Identifier of the current problem |
+| difficulty | easy/medium/hard | Problem difficulty level |
+| flaw_type | bug/inefficiency/security/style | Category of flaw |
+| description | str | What the function is supposed to do |
+| flawed_code | str | The broken/bad Python function to review |
+| hint_available | bool | Whether a hint is available (costs -0.20 reward) |
+| hint | str or null | Populated only after agent requests hint |
+| cumulative_reward | float | Running reward total |
+| done | bool | Whether episode is complete |
+| feedback | str or null | Grader feedback after each step |
 
 ## Action Space
 
-| field name | type | description |
+| Field | Type | Description |
 |---|---|---|
-| flaw_type_guess | `"bug" \| "inefficiency" \| "security" \| "style"` | Agent guess for flaw class |
-| explanation | str | Natural language explanation of flaw |
-| fixed_code | str | Corrected Python implementation |
-| request_hint | bool | If true, consumes one hint and triggers penalty |
+| flaw_type_guess | bug/inefficiency/security/style | Agent's flaw classification |
+| explanation | str | Plain English explanation of the flaw (>20 words for credit) |
+| fixed_code | str | Complete corrected Python function |
+| request_hint | bool | Set True to receive hint (-0.20 reward penalty) |
 
 ## Reward Structure
 
-| component | weight/range | condition |
-|---|---|---|
-| Code correctness | 0.50 (mapped to `[-0.5, +0.5]`) | Based on pass rate and runtime validity |
-| Flaw type identification | 0.20 (`[0.0, +0.2]`) | +0.2 when guess is correct |
-| Explanation quality | 0.20 (`[0.0, +0.2]`) | Thresholded by keyword overlap score |
-| Speed bonus | 0.10 (`[0.0, +0.1]`) | +0.1 on step 1, +0.05 on step 2 |
-| Hint penalty | flat `-0.20` | Applied when hint is used |
+| Component | Weight | Condition | Reward |
+|---|---|---|---|
+| Code correctness | 0.50 | All tests pass | +0.50 |
+| Code correctness | 0.50 | ≥75% tests pass | +0.35 |
+| Code correctness | 0.50 | ≥50% tests pass | +0.20 |
+| Code correctness | 0.50 | ≥25% tests pass | +0.08 |
+| Code correctness | 0.50 | >0% tests pass | +0.05 |
+| Code correctness | 0.50 | All tests fail | -0.10 |
+| Code correctness | 0.50 | SyntaxError | -0.50 |
+| Flaw type ID | 0.20 | Correct classification | +0.20 |
+| Explanation | 0.20 | Score ≥ 0.7 | +0.20 |
+| Explanation | 0.20 | Score ≥ 0.5 | +0.14 |
+| Explanation | 0.20 | Score ≥ 0.3 | +0.08 |
+| Speed bonus | 0.10 | Solved on step 1 | +0.10 |
+| Speed bonus | 0.10 | Solved on step 2 | +0.05 |
+| Difficulty bonus | — | Hard problem, all pass | +0.05 |
+| Difficulty bonus | — | Medium problem, all pass | +0.02 |
+| Hint penalty | — | Hint requested | -0.20 |
+| **Final reward** | | **Clamped to (0.01, 0.99)** | |
 
-Final reward is clamped to `[-1.0, 1.0]`.
+## Problem Dataset (20 Problems)
 
-## Problem Dataset
+| ID | Difficulty | Flaw Type | Task Group |
+|---|---|---|---|
+| off_by_one_loop | easy | bug | easy_bug_fix |
+| wrong_operator | easy | bug | easy_bug_fix |
+| missing_return | easy | bug | easy_bug_fix |
+| mutable_default_arg | easy | bug | easy_mutable_default |
+| integer_division | easy | bug | easy_mutable_default |
+| reversed_condition | easy | bug | easy_mutable_default |
+| infinite_loop_risk | easy | bug | easy_loop_bug |
+| nested_loop_search | medium | inefficiency | medium_inefficiency_lookup |
+| repeated_computation | medium | inefficiency | medium_inefficiency_lookup |
+| string_concatenation | medium | inefficiency | medium_inefficiency_string |
+| redundant_sort | medium | inefficiency | medium_inefficiency_string |
+| unnecessary_list_copy | medium | inefficiency | medium_inefficiency_string |
+| sql_injection | hard | security | hard_security_injection |
+| hardcoded_secret | hard | security | hard_security_injection |
+| eval_usage | hard | security | hard_security_execution |
+| path_traversal | hard | security | hard_security_execution |
+| god_function | hard | style | hard_style_decomposition |
+| magic_numbers | hard | style | hard_style_decomposition |
+| poor_naming | hard | style | hard_style_decomposition |
+| no_error_handling | hard | style | hard_style_decomposition |
 
-| id | difficulty | flaw_type |
-|---|---|---|
-| off_by_one_loop | easy | bug |
-| wrong_operator | easy | bug |
-| missing_return | easy | bug |
-| mutable_default_arg | medium | bug |
-| integer_division | easy | bug |
-| reversed_condition | easy | bug |
-| infinite_loop_risk | medium | bug |
-| nested_loop_search | medium | inefficiency |
-| repeated_computation | easy | inefficiency |
-| string_concatenation | medium | inefficiency |
-| redundant_sort | easy | inefficiency |
-| unnecessary_list_copy | easy | inefficiency |
-| sql_injection | hard | security |
-| hardcoded_secret | medium | security |
-| eval_usage | hard | security |
-| path_traversal | hard | security |
-| god_function | hard | style |
-| magic_numbers | medium | style |
-| poor_naming | medium | style |
-| no_error_handling | medium | style |
+## Baseline Scores (Llama-3.1-8B-Instruct)
+
+| Task | Difficulty | Avg Reward | Pass Rate |
+|---|---|---|---|
+| easy_bug_fix | easy | ~0.65 | ~78% |
+| easy_mutable_default | easy | ~0.58 | ~70% |
+| easy_loop_bug | easy | ~0.55 | ~65% |
+| medium_inefficiency_lookup | medium | ~0.42 | ~50% |
+| medium_inefficiency_string | medium | ~0.38 | ~45% |
+| hard_security_injection | hard | ~0.28 | ~30% |
+| hard_security_execution | hard | ~0.25 | ~28% |
+| hard_style_decomposition | hard | ~0.18 | ~20% |
 
 ## Episode Lifecycle
-1. Client calls `POST /reset` (or WebSocket `{"action":"reset"}`), optionally with `problem_id`.
-2. Environment selects a problem, resets counters, returns initial observation (`step=0`, `done=false`).
-3. Client sends `Action` payload to `POST /step` (or WebSocket `{"action":"step","payload":...}`).
-4. Grader evaluates flaw type, explanation, and fixed code execution across all tests.
-5. Reward module computes shaped reward breakdown.
-6. Environment updates state (`step += 1`, `cumulative_reward += reward`).
-7. Episode ends when all tests pass or max steps are reached.
-8. Client reads `GET /state` for full trace; terminal result available via env `result()`.
-
-Example step progression:
-- Step 1: pass_rate 0.33, correct type, short explanation -> small positive reward
-- Step 2: pass_rate 1.00, strong explanation -> large reward, episode done
+env.reset()
+→ Observation(flawed_code, description, flaw_type, difficulty)
+agent reads observation
+→ builds Action(flaw_type_guess, explanation, fixed_code)
+env.step(action)
+→ grader executes fixed_code against test cases
+→ reward computed across 4 dimensions
+→ Observation(feedback) returned
+repeat up to max_steps=3 times
+→ done=True when all tests pass OR max_steps reached
+env.result() → EpisodeResult(total_reward, passed_all_tests, steps_taken)
 
 ## Grader
-The grader is deterministic and programmatic:
-- `execute_code()` sanitizes forbidden imports (`os`, `sys`, `subprocess`), executes submitted code, runs `solution(**kwargs)`, catches all exceptions, and enforces a 2-second timeout.
-- `grade_flaw_type()` checks exact class match.
-- `grade_explanation()` uses minimum length and Jaccard similarity over content tokens.
-- `grade_fixed_code()` executes all test cases and computes pass rate plus execution metrics.
-- `grade()` composes all sub-scores and emits feedback used by the environment.
 
-Run built-in grading smoke tests:
-```bash
-python grader.py
-```
+The grader dynamically `exec()`s the agent's fixed code in a sandboxed 
+namespace, calls the function with test case kwargs, and compares output 
+to expected values. Key safety features:
+- 2-second timeout per test case using `threading.Timer`
+- `os`, `sys`, `subprocess` imports stripped from exec namespace
+- All exceptions caught and reported (SyntaxError, RuntimeError, TypeError)
 
-## Quick Start — Local
+## Quick Start
+
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Adithkp03/code-review-env
 cd code-review-env
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app:app --host 0.0.0.0 --port 7860
+uvicorn app:app --port 7860
+# Then visit http://localhost:7860/health
 ```
 
-Then open:
-- `http://localhost:7860/health`
-- `http://localhost:7860/docs`
+## Running the Baseline
 
-## Running inference.py locally
 ```bash
 export API_BASE_URL="https://api-inference.huggingface.co/v1"
 export MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
@@ -147,76 +162,32 @@ python inference.py
 ```
 
 ## Deployment — Hugging Face Spaces
+
 ```bash
-pip install openenv-core
-openenv login
-openenv push
+git remote add space https://huggingface.co/spaces/Adithkp03/code-review-env
+git push space main
 ```
 
-This repository includes a Dockerfile compatible with Spaces using port `7860`.
+## Example API Interaction
 
-## Example Agent Interaction
-Reset:
-```json
-POST /reset
-{
-  "problem_id": "wrong_operator"
-}
-```
+```bash
+# Reset
+curl -X POST https://Adithkp03-code-review-env.hf.space/reset \
+  -H "Content-Type: application/json" -d '{}'
 
-Response (`Observation`):
-```json
-{
-  "episode_id": "a5f0c793-2a17-4d96-b58f-f7e3a3bdf855",
-  "step": 0,
-  "max_steps": 3,
-  "problem_id": "wrong_operator",
-  "difficulty": "easy",
-  "flaw_type": "bug",
-  "description": "Return the sum of all numbers in the list.",
-  "flawed_code": "def solution(nums): ...",
-  "hint_available": false,
-  "hint": null,
-  "cumulative_reward": 0.0,
-  "done": false,
-  "feedback": null
-}
-```
+# Step
+curl -X POST https://Adithkp03-code-review-env.hf.space/step \
+  -H "Content-Type: application/json" \
+  -d '{
+    "flaw_type_guess": "bug",
+    "explanation": "The loop uses range(len(lst)-1) which misses the last element. It should use range(len(lst)).",
+    "fixed_code": "def sum_list(lst):\n    total = 0\n    for i in range(len(lst)):\n        total += lst[i]\n    return total",
+    "request_hint": false
+  }'
 
-Step:
-```json
-POST /step
-{
-  "flaw_type_guess": "bug",
-  "explanation": "The loop updates the accumulator using subtraction instead of addition, so the total moves in the wrong direction and returns a negative sum for positive inputs.",
-  "fixed_code": "def solution(nums):\n    total = 0\n    for n in nums:\n        total += n\n    return total",
-  "request_hint": false
-}
-```
+# Health check
+curl https://Adithkp03-code-review-env.hf.space/health
 
-Response (`step_result`):
-```json
-{
-  "observation": {
-    "episode_id": "a5f0c793-2a17-4d96-b58f-f7e3a3bdf855",
-    "step": 1,
-    "max_steps": 3,
-    "problem_id": "wrong_operator",
-    "difficulty": "easy",
-    "flaw_type": "bug",
-    "description": "Return the sum of all numbers in the list.",
-    "flawed_code": "def solution(nums): ...",
-    "hint_available": false,
-    "hint": null,
-    "cumulative_reward": 1.0,
-    "done": true,
-    "feedback": "Flaw type correct. Explanation score=0.75. Code pass rate=1.00 (3/3)."
-  },
-  "reward": 1.0,
-  "done": true,
-  "info": {
-    "grade": {},
-    "reward_breakdown": {}
-  }
-}
+# List all tasks
+curl https://Adithkp03-code-review-env.hf.space/tasks
 ```

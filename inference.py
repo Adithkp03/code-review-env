@@ -138,8 +138,13 @@ def run_episode(task_name: str = "easy_bug_fix", problem_id: str = None) -> None
 
 TASK_PROBLEM_MAP = {
     "easy_bug_fix": "off_by_one_loop",
-    "medium_security_review": "sql_injection",
-    "hard_inefficiency_fix": "nested_loop_search",
+    "easy_mutable_default": "mutable_default_arg",
+    "easy_loop_bug": "infinite_loop_risk",
+    "medium_inefficiency_lookup": "nested_loop_search",
+    "medium_inefficiency_string": "string_concatenation",
+    "hard_security_injection": "sql_injection",
+    "hard_security_execution": "eval_usage",
+    "hard_style_decomposition": "god_function",
 }
 
 if __name__ == "__main__":

@@ -1,7 +1,11 @@
 ---
 name: code-review-env
 version: "1.0.0"
-description: "RL environment where an AI agent reviews Python code, identifies flaws, and submits fixes. Supports bug detection, inefficiency fixing, security review, and style improvement."
+description: "A reinforcement learning environment where an AI agent acts as a 
+  senior Python code reviewer. Each episode presents a flawed Python function. 
+  The agent must identify the flaw type, explain it in plain English, and submit 
+  a corrected version. Graded programmatically by executing both original and 
+  fixed code against hidden test cases."
 author: "Adithkp03"
 
 entry_point: app.py
@@ -9,13 +13,13 @@ inference: inference.py
 
 observation_space:
   type: text
-  description: "Flawed Python function with task metadata"
+  description: "Flawed Python function + task description + flaw type category"
 
 action_space:
   type: text
-  description: "flaw_type_guess, explanation, fixed_code, request_hint"
+  description: "JSON: flaw_type_guess, explanation (free text), fixed_code (complete function), request_hint (bool)"
 
-reward_range: [0.0, 1.0]
+reward_range: [0.01, 0.99]
 
 tasks:
   - id: easy_bug_fix
@@ -23,21 +27,64 @@ tasks:
     difficulty: easy
     description: "Fix a simple off-by-one or operator bug in a Python function"
     grader: grader.grade_fixed_code
-    reward_range: [0.0, 1.0]
+    reward_range: [0.01, 0.99]
+    problems: [off_by_one_loop, wrong_operator, missing_return]
 
-  - id: medium_security_review
-    name: medium_security_review
+  - id: easy_mutable_default
+    name: easy_mutable_default
+    difficulty: easy
+    description: "Identify and fix the classic mutable default argument Python gotcha"
+    grader: grader.grade_fixed_code
+    reward_range: [0.01, 0.99]
+    problems: [mutable_default_arg, integer_division, reversed_condition]
+
+  - id: easy_loop_bug
+    name: easy_loop_bug
+    difficulty: easy
+    description: "Fix infinite loop risk and division precision bugs"
+    grader: grader.grade_fixed_code
+    reward_range: [0.01, 0.99]
+    problems: [infinite_loop_risk]
+
+  - id: medium_inefficiency_lookup
+    name: medium_inefficiency_lookup
     difficulty: medium
-    description: "Identify and fix a security vulnerability such as SQL injection or eval usage"
+    description: "Optimize O(n^2) nested loop lookup to O(1) using a set or dict"
     grader: grader.grade_fixed_code
-    reward_range: [0.0, 1.0]
+    reward_range: [0.01, 0.99]
+    problems: [nested_loop_search, repeated_computation]
 
-  - id: hard_inefficiency_fix
-    name: hard_inefficiency_fix
-    difficulty: hard
-    description: "Identify and fix a performance inefficiency such as O(n^2) lookup or string concatenation in loop"
+  - id: medium_inefficiency_string
+    name: medium_inefficiency_string
+    difficulty: medium
+    description: "Fix string concatenation in loop and redundant sort inefficiencies"
     grader: grader.grade_fixed_code
-    reward_range: [0.0, 1.0]
+    reward_range: [0.01, 0.99]
+    problems: [string_concatenation, redundant_sort, unnecessary_list_copy]
+
+  - id: hard_security_injection
+    name: hard_security_injection
+    difficulty: hard
+    description: "Identify and fix SQL injection and hardcoded secrets vulnerabilities"
+    grader: grader.grade_fixed_code
+    reward_range: [0.01, 0.99]
+    problems: [sql_injection, hardcoded_secret]
+
+  - id: hard_security_execution
+    name: hard_security_execution
+    difficulty: hard
+    description: "Fix eval() usage on untrusted input and path traversal vulnerabilities"
+    grader: grader.grade_fixed_code
+    reward_range: [0.01, 0.99]
+    problems: [eval_usage, path_traversal]
+
+  - id: hard_style_decomposition
+    name: hard_style_decomposition
+    difficulty: hard
+    description: "Decompose god functions, replace magic numbers, improve naming and error handling"
+    grader: grader.grade_fixed_code
+    reward_range: [0.01, 0.99]
+    problems: [god_function, magic_numbers, poor_naming, no_error_handling]
 
 tags:
   - code-review
@@ -46,3 +93,4 @@ tags:
   - llm-training
   - bug-detection
   - security
+  - real-world

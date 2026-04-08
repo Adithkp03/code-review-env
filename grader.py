@@ -204,6 +204,7 @@ def grade(action: Action, problem: dict) -> dict:
         "flaw_type": flaw_type_result,
         "explanation": explanation_result,
         "code": code_result,
+        "difficulty": problem.get("difficulty", "easy"),
         "hint_penalty": hint_penalty,
         "composite_score": composite_score,
         "feedback": feedback,

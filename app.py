@@ -82,44 +82,84 @@ def health() -> dict[str, Any]:
 
 @app.get("/tasks")
 async def list_tasks():
-    """List all tasks with their graders - required by OpenEnv validator."""
     return {
         "tasks": [
             {
                 "id": "easy_bug_fix",
                 "name": "easy_bug_fix",
                 "difficulty": "easy",
-                "description": "Fix a simple off-by-one or operator bug in a Python function",
+                "description": "Fix a simple off-by-one or operator bug",
                 "grader": "grader.grade_fixed_code",
-                "reward_range": [0.0, 1.0],
-                "problem_ids": ["off_by_one_loop", "wrong_operator", "missing_return",
-                                "mutable_default_arg", "integer_division",
-                                "reversed_condition", "infinite_loop_risk"]
+                "reward_range": [0.01, 0.99],
+                "problem_ids": ["off_by_one_loop", "wrong_operator", "missing_return"]
             },
             {
-                "id": "medium_security_review",
-                "name": "medium_security_review",
+                "id": "easy_mutable_default",
+                "name": "easy_mutable_default",
+                "difficulty": "easy",
+                "description": "Fix mutable default argument and division bugs",
+                "grader": "grader.grade_fixed_code",
+                "reward_range": [0.01, 0.99],
+                "problem_ids": ["mutable_default_arg", "integer_division", "reversed_condition"]
+            },
+            {
+                "id": "easy_loop_bug",
+                "name": "easy_loop_bug",
+                "difficulty": "easy",
+                "description": "Fix infinite loop risk bugs",
+                "grader": "grader.grade_fixed_code",
+                "reward_range": [0.01, 0.99],
+                "problem_ids": ["infinite_loop_risk"]
+            },
+            {
+                "id": "medium_inefficiency_lookup",
+                "name": "medium_inefficiency_lookup",
                 "difficulty": "medium",
-                "description": "Identify and fix a security vulnerability",
+                "description": "Optimize O(n^2) lookup to O(1)",
                 "grader": "grader.grade_fixed_code",
-                "reward_range": [0.0, 1.0],
-                "problem_ids": ["sql_injection", "hardcoded_secret",
-                                "eval_usage", "path_traversal"]
+                "reward_range": [0.01, 0.99],
+                "problem_ids": ["nested_loop_search", "repeated_computation"]
             },
             {
-                "id": "hard_inefficiency_fix",
-                "name": "hard_inefficiency_fix",
-                "difficulty": "hard",
-                "description": "Identify and fix a performance inefficiency",
+                "id": "medium_inefficiency_string",
+                "name": "medium_inefficiency_string",
+                "difficulty": "medium",
+                "description": "Fix string and sort inefficiencies",
                 "grader": "grader.grade_fixed_code",
-                "reward_range": [0.0, 1.0],
-                "problem_ids": ["nested_loop_search", "repeated_computation",
-                                "string_concatenation", "redundant_sort",
-                                "unnecessary_list_copy"]
+                "reward_range": [0.01, 0.99],
+                "problem_ids": ["string_concatenation", "redundant_sort", "unnecessary_list_copy"]
+            },
+            {
+                "id": "hard_security_injection",
+                "name": "hard_security_injection",
+                "difficulty": "hard",
+                "description": "Fix SQL injection and hardcoded secrets",
+                "grader": "grader.grade_fixed_code",
+                "reward_range": [0.01, 0.99],
+                "problem_ids": ["sql_injection", "hardcoded_secret"]
+            },
+            {
+                "id": "hard_security_execution",
+                "name": "hard_security_execution",
+                "difficulty": "hard",
+                "description": "Fix eval() and path traversal vulnerabilities",
+                "grader": "grader.grade_fixed_code",
+                "reward_range": [0.01, 0.99],
+                "problem_ids": ["eval_usage", "path_traversal"]
+            },
+            {
+                "id": "hard_style_decomposition",
+                "name": "hard_style_decomposition",
+                "difficulty": "hard",
+                "description": "Decompose god functions and fix style issues",
+                "grader": "grader.grade_fixed_code",
+                "reward_range": [0.01, 0.99],
+                "problem_ids": ["god_function", "magic_numbers", "poor_naming", "no_error_handling"]
             }
         ],
-        "total_tasks": 3,
-        "total_problems": 20
+        "total_tasks": 8,
+        "total_problems": 20,
+        "difficulty_distribution": {"easy": 3, "medium": 2, "hard": 3}
     }
 
 

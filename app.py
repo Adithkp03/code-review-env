@@ -80,6 +80,19 @@ def health() -> dict[str, Any]:
     return {"status": "ok", "problems_loaded": len(PROBLEMS)}
 
 
+@app.get("/tasks")
+async def get_tasks():
+    return {
+        "tasks": [
+            {"name": "bug_detection", "description": "Identify and fix bugs", "grader": "grader.py"},
+            {"name": "inefficiency_detection", "description": "Identify and fix inefficiencies", "grader": "grader.py"},
+            {"name": "security_review", "description": "Identify and fix security issues", "grader": "grader.py"},
+            {"name": "style_improvement", "description": "Identify and fix style issues", "grader": "grader.py"},
+        ],
+        "total": 4
+    }
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()

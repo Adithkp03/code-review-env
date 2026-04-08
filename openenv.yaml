@@ -1,3 +1,4 @@
+---
 name: code-review-env
 version: "1.0.0"
 description: "An RL environment where an AI agent acts as a code reviewer. Each episode presents a Python function with intentional flaws. The agent must identify the flaw type, explain it, and submit a corrected version."
@@ -15,6 +16,27 @@ action_space:
   description: "JSON with flaw_type_guess, explanation, fixed_code, request_hint"
 
 reward_range: [-1.0, 1.0]
+
+tasks:
+  - name: bug_detection
+    description: "Identify and fix bugs in Python functions"
+    grader: grader.py
+    metric: pass_rate
+    
+  - name: inefficiency_detection
+    description: "Identify and fix performance inefficiencies in Python functions"
+    grader: grader.py
+    metric: pass_rate
+    
+  - name: security_review
+    description: "Identify and fix security vulnerabilities in Python functions"
+    grader: grader.py
+    metric: pass_rate
+    
+  - name: style_improvement
+    description: "Identify and fix style issues in Python functions"
+    grader: grader.py
+    metric: pass_rate
 
 tags:
   - code-review

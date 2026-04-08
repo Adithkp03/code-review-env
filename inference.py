@@ -93,8 +93,14 @@ def llm_to_action(observation: dict) -> Action:
 def run_episode() -> None:
     env = CodeReviewEnv(max_steps=3, randomize=True)
     observation = env.reset().model_dump()
-    problem_id = observation["problem_id"]
-    print(f"[START] task={problem_id}", flush=True)
+    flaw_type = observation["flaw_type"]
+    task_name = {
+        "bug": "bug_detection",
+        "inefficiency": "inefficiency_detection",
+        "security": "security_review",
+        "style": "style_improvement",
+    }.get(flaw_type, f"{flaw_type}_detection")
+    print(f"[START] task={task_name}", flush=True)
     cumulative_reward = 0.0
     total_steps = 0
 
@@ -138,7 +144,7 @@ def run_episode() -> None:
         observation = next_observation.model_dump()
 
     print(
-        f"[END] task={problem_id} "
+        f"[END] task={task_name} "
         f"score={cumulative_reward:.4f} "
         f"steps={total_steps}",
         flush=True,
